@@ -1,14 +1,13 @@
-{
-  config,
-  options,
-  lib,
-  pkgs,
-  ...
+{ config
+, options
+, lib
+, pkgs
+, ...
 }:
 with lib; let
   cfg = config.age;
 
-  isDarwin = lib.attrsets.hasAttrByPath ["environment" "darwinConfig"] options;
+  isDarwin = lib.attrsets.hasAttrByPath [ "environment" "darwinConfig" ] options;
 
   ageBin = config.age.ageBin;
 
@@ -94,10 +93,10 @@ with lib; let
 
   testIdentities =
     map
-    (path: ''
-      test -f ${path} || echo '[agenix] WARNING: config.age.identityPaths entry ${path} not present!'
-    '')
-    cfg.identityPaths;
+      (path: ''
+        test -f ${path} || echo '[agenix] WARNING: config.age.identityPaths entry ${path} not present!'
+      '')
+      cfg.identityPaths;
 
   cleanupAndLink = ''
     _agenix_generation="$(basename "$(readlink ${cfg.secretsDir})" || echo 0)"
@@ -112,10 +111,10 @@ with lib; let
   '';
 
   installSecrets = builtins.concatStringsSep "\n" (
-    ["echo '[agenix] decrypting secrets...'"]
+    [ "echo '[agenix] decrypting secrets...'" ]
     ++ testIdentities
     ++ (map installSecret (builtins.attrValues cfg.secrets))
-    ++ [cleanupAndLink]
+    ++ [ cleanupAndLink ]
   );
 
   chownSecret = secretType: ''
@@ -124,12 +123,12 @@ with lib; let
   '';
 
   chownSecrets = builtins.concatStringsSep "\n" (
-    ["echo '[agenix] chowning...'"]
-    ++ [chownMountPoint]
+    [ "echo '[agenix] chowning...'" ]
+    ++ [ chownMountPoint ]
     ++ (map chownSecret (builtins.attrValues cfg.secrets))
   );
 
-  secretType = types.submodule ({config, ...}: {
+  secretType = types.submodule ({ config, ... }: {
     options = {
       name = mkOption {
         type = types.str;
@@ -179,12 +178,13 @@ with lib; let
           Group of the decrypted secret.
         '';
       };
-      symlink = mkEnableOption "symlinking secrets to their destination" // {default = true;};
+      symlink = mkEnableOption "symlinking secrets to their destination" // { default = true; };
     };
   });
-in {
+in
+{
   imports = [
-    (mkRenamedOptionModule ["age" "sshKeyPaths"] ["age" "identityPaths"])
+    (mkRenamedOptionModule [ "age" "sshKeyPaths" ] [ "age" "identityPaths" ])
   ];
 
   options.age = {
@@ -200,7 +200,7 @@ in {
     };
     secrets = mkOption {
       type = types.attrsOf secretType;
-      default = {};
+      default = { };
       description = ''
         Attrset of secrets.
       '';
@@ -215,11 +215,11 @@ in {
     secretsMountPoint = mkOption {
       type =
         types.addCheck types.str
-        (s:
-          (builtins.match "[ \t\n]*" s)
-          == null # non-empty
-          && (builtins.match ".+/" s) == null) # without trailing slash
-        // {description = "${types.str.description} (with check: non-empty without trailing slash)";};
+          (s:
+            (builtins.match "[ \t\n]*" s)
+            == null # non-empty
+            && (builtins.match ".+/" s) == null) # without trailing slash
+        // { description = "${types.str.description} (with check: non-empty without trailing slash)"; };
       default = "/run/agenix.d";
       description = ''
         Where secrets are created before they are symlinked to {option}`age.secretsDir`
@@ -235,7 +235,7 @@ in {
           "/etc/ssh/ssh_host_ed25519_key"
           "/etc/ssh/ssh_host_rsa_key"
         ]
-        else [];
+        else [ ];
       defaultText = literalExpression ''
         if (config.services.openssh.enable or false)
         then map (e: e.path) (lib.filter (e: e.type == "rsa" || e.type == "ed25519") config.services.openssh.hostKeys)
@@ -249,20 +249,47 @@ in {
       description = ''
         Path to SSH keys to be used as identities in age decryption.
       '';
+
+      asOneshotService = mkEnableOption "Run as systemd oneshot service" // { default = false; };
     };
   };
 
-  config = mkIf (cfg.secrets != {}) (mkMerge [
+  config = mkIf (cfg.secrets != { }) (mkMerge [
     {
       assertions = [
         {
-          assertion = cfg.identityPaths != [];
+          assertion = cfg.identityPaths != [ ];
           message = "age.identityPaths must be set.";
         }
       ];
     }
 
-    (optionalAttrs (!isDarwin) {
+    (optionalAttrs (!isDarwin && asOneshotService) {
+      systemd.services.agenix-install-secrets = {
+        wantedBy = [ "sysinit.target" ];
+        unitConfig.DefaultDependencies = "no";
+
+        serviceConfig = {
+          Type = "oneshot";
+          ExecStart = [
+            (pkgs.writeShellApplication {
+              name = "newGeneration";
+              text = newGeneration;
+            })
+            (pkgs.writeShellApplication {
+              name = "agenixInstall";
+              text = installSecrets;
+            })
+            (pkgs.writeShellApplication {
+              name = "agenixChown";
+              text = chownSecrets;
+            })
+          ];
+          RemainAfterExit = true;
+        };
+      };
+    })
+    (optionalAttrs (!isDarwin && !asOneshotService) {
       # Create a new directory full of secrets for symlinking (this helps
       # ensure removed secrets are actually removed, or at least become
       # invalid symlinks).
@@ -282,7 +309,7 @@ in {
       };
 
       # So user passwords can be encrypted.
-      system.activationScripts.users.deps = ["agenixInstall"];
+      system.activationScripts.users.deps = [ "agenixInstall" ];
 
       # Change ownership and group after users and groups are made.
       system.activationScripts.agenixChown = {
@@ -296,7 +323,7 @@ in {
       # So other activation scripts can depend on agenix being done.
       system.activationScripts.agenix = {
         text = "";
-        deps = ["agenixChown"];
+        deps = [ "agenixChown" ];
       };
     })
     (optionalAttrs isDarwin {
