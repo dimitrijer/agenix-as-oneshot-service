@@ -266,7 +266,7 @@ in
     (mkIf (!isDarwin && cfg.asOneshotService) {
       systemd.services.agenix-install-secrets = {
         description = "decrypts and installs agenix secrets";
-        wantedBy = [ "sysinit.target" ];
+        wantedBy = [ "multi-user.target" ];
         unitConfig.DefaultDependencies = "no";
         path = with pkgs; [ gnugrep coreutils util-linux ];
         script = ''
