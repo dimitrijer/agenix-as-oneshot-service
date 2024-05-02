@@ -13,6 +13,8 @@ with lib; let
 
   users = config.users.users;
 
+  asOneshotService = config.age.asOneshotService;
+
   mountCommand =
     if isDarwin
     then ''
@@ -264,7 +266,7 @@ in
       ];
     }
 
-    (optionalAttrs (!isDarwin && cfg.asOneshotService) {
+    (optionalAttrs (!isDarwin && asOneshotService) {
       systemd.services.agenix-install-secrets = {
         wantedBy = [ "sysinit.target" ];
         unitConfig.DefaultDependencies = "no";
@@ -289,7 +291,7 @@ in
         };
       };
     })
-    (optionalAttrs (!isDarwin && !cfg.asOneshotService) {
+    (optionalAttrs (!isDarwin && !asOneshotService) {
       # Create a new directory full of secrets for symlinking (this helps
       # ensure removed secrets are actually removed, or at least become
       # invalid symlinks).
