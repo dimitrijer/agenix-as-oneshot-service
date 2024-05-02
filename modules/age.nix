@@ -250,7 +250,7 @@ in
         Path to SSH keys to be used as identities in age decryption.
       '';
     };
-    asOneshotService = mkEnableOption "Run as systemd oneshot service" // { default = false; };
+    asOneshotService = mkEnableOption "running as a systemd oneshot service" // { default = false; };
   };
 
   config = mkIf (cfg.secrets != { }) (mkMerge [
@@ -263,7 +263,7 @@ in
       ];
     }
 
-    (optionalAttrs (!isDarwin && cfg.asOneshotService) {
+    (optionalAttrs (!isDarwin && config.age.asOneshotService) {
       systemd.services.agenix-install-secrets = {
         wantedBy = [ "sysinit.target" ];
         unitConfig.DefaultDependencies = "no";
@@ -288,7 +288,7 @@ in
         };
       };
     })
-    (optionalAttrs (!isDarwin && !cfg.asOneshotService) {
+    (optionalAttrs (!isDarwin && !config.age.asOneshotService) {
       # Create a new directory full of secrets for symlinking (this helps
       # ensure removed secrets are actually removed, or at least become
       # invalid symlinks).
