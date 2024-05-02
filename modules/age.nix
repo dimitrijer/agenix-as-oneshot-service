@@ -268,7 +268,7 @@ in
         description = "decrypts and installs agenix secrets";
         wantedBy = [ "sysinit.target" ];
         unitConfig.DefaultDependencies = "no";
-        path = with pkgs; [ gnugrep coreutils ];
+        path = with pkgs; [ gnugrep coreutils util-linux ];
         script = ''
           set -eu -o pipefail
           ${newGeneration}
