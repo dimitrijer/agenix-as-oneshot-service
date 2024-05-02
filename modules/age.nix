@@ -265,25 +265,20 @@ in
 
     (mkIf (!isDarwin && config.age.asOneshotService) {
       systemd.services.agenix-install-secrets = {
+        description = "decrypts and installs agenix secrets";
         wantedBy = [ "sysinit.target" ];
         unitConfig.DefaultDependencies = "no";
+        path = with pkgs; [ gnugrep coreutils ];
+        script = ''
+          set -eu -o pipefail
+          ${newGeneration}
+          ${installSecrets}
+          ${chownSecrets}
+          exit 0
+        '';
 
         serviceConfig = {
           Type = "oneshot";
-          ExecStart = [
-            (pkgs.writeShellApplication {
-              name = "newGeneration";
-              text = newGeneration;
-            })
-            (pkgs.writeShellApplication {
-              name = "agenixInstall";
-              text = installSecrets;
-            })
-            (pkgs.writeShellApplication {
-              name = "agenixChown";
-              text = chownSecrets;
-            })
-          ];
           RemainAfterExit = true;
         };
       };
