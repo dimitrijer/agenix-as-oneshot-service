@@ -263,7 +263,7 @@ in
       ];
     }
 
-    (mkIf (!isDarwin && config.age.asOneshotService) {
+    (mkIf (!isDarwin && cfg.asOneshotService) {
       systemd.services.agenix-install-secrets = {
         description = "decrypts and installs agenix secrets";
         wantedBy = [ "sysinit.target" ];
@@ -283,7 +283,7 @@ in
         };
       };
     })
-    (mkIf (!isDarwin && !config.age.asOneshotService) {
+    (mkIf (!isDarwin && !cfg.asOneshotService) {
       # Create a new directory full of secrets for symlinking (this helps
       # ensure removed secrets are actually removed, or at least become
       # invalid symlinks).
